@@ -273,7 +273,7 @@
                             </div>
                         </div>
 
-                        <!-- Recent Activities -->
+                        <!-- Ringkasan per Lemari -->
                         <div class="glassmorphism rounded-2xl p-6">
                             <h3 class="text-lg font-semibold mb-4">Ringkasan per Lemari</h3>
                             <div class="space-y-3" id="cabinet-summary">
@@ -286,7 +286,7 @@
                     <div class="glassmorphism rounded-2xl p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-lg font-semibold">Data Laci</h3>
-                            <button onclick="loadDrawers()" class="text-sm text-neon-blue hover:underline flex items-center gap-1">
+                            <button onclick="loadDashboardData()" class="text-sm text-neon-blue hover:underline flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="none" viewbox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
@@ -419,9 +419,12 @@
             }
         }
 
-        // Fungsi untuk mengambil data summary
+        // Fungsi untuk mengambil data dashboard
         async function loadDashboardData() {
+            showLoading(true);
             try {
+                console.log('Mengambil data dari tabel drawers...');
+                
                 // Ambil semua data drawers dengan relasi ke cabinets dan products
                 const { data: drawers, error } = await supabase
                     .from('drawers')
@@ -433,6 +436,8 @@
 
                 if (error) throw error;
 
+                console.log('Data drawers:', drawers);
+
                 if (!drawers || drawers.length === 0) {
                     document.getElementById('drawers-table-body').innerHTML = `
                         <tr>
@@ -441,6 +446,14 @@
                             </td>
                         </tr>
                     `;
+                    
+                    document.getElementById('cabinet-summary').innerHTML = `
+                        <div class="text-center text-yellow-500 py-4">
+                            Belum ada data lemari
+                        </div>
+                    `;
+                    
+                    updateConnectionStatus('connected', 'Terhubung ke database (0 data)');
                     return;
                 }
 
@@ -475,9 +488,9 @@
 
                 // Update status bars
                 const total = drawers.length;
-                document.getElementById('status-good-bar').style.width = `${(statusGood/total)*100}%`;
-                document.getElementById('status-low-bar').style.width = `${(statusLow/total)*100}%`;
-                document.getElementById('status-empty-bar').style.width = `${(statusEmpty/total)*100}%`;
+                document.getElementById('status-good-bar').style.width = total > 0 ? `${(statusGood/total)*100}%` : '0%';
+                document.getElementById('status-low-bar').style.width = total > 0 ? `${(statusLow/total)*100}%` : '0%';
+                document.getElementById('status-empty-bar').style.width = total > 0 ? `${(statusEmpty/total)*100}%` : '0%';
 
                 // Tampilkan data drawers di tabel
                 const tbody = document.getElementById('drawers-table-body');
@@ -533,14 +546,20 @@
                     </div>
                 `).join('');
 
+                updateConnectionStatus('connected', `Terhubung ke database (${drawers.length} laci)`);
+
             } catch (error) {
                 console.error('Error loading dashboard:', error);
                 showError('Gagal memuat data dashboard: ' + error.message);
+                updateConnectionStatus('error', 'Gagal memuat data: ' + error.message);
+            } finally {
+                showLoading(false);
             }
         }
 
         // Fungsi untuk mengambil data produk
         async function loadProducts() {
+            showLoading(true);
             try {
                 const { data: products, error } = await supabase
                     .from('products')
@@ -572,11 +591,14 @@
             } catch (error) {
                 console.error('Error loading products:', error);
                 showError('Gagal memuat data produk');
+            } finally {
+                showLoading(false);
             }
         }
 
         // Fungsi untuk mengambil data cabinets
         async function loadCabinets() {
+            showLoading(true);
             try {
                 const { data: cabinets, error } = await supabase
                     .from('cabinets')
@@ -597,14 +619,4 @@
                 grid.innerHTML = cabinets.map(cab => {
                     const totalDrawers = cab.drawers?.length || 0;
                     const totalPunchAtas = cab.drawers?.reduce((sum, d) => sum + (d.punch_atas || 0), 0) || 0;
-                    const totalPunchBawah = cab.drawers?.reduce((sum, d) => sum + (d.punch_bawah || 0), 0) || 0;
-                    const totalDies = cab.drawers?.reduce((sum, d) => sum + (d.dies || 0), 0) || 0;
-
-                    return `
-                        <div class="glassmorphism rounded-2xl p-6 cursor-pointer hover:shadow-lg transition-all duration-300">
-                            <h3 class="text-lg font-bold mb-2">${cab.name}</h3>
-                            <p class="text-sm text-gray-500 mb-4">${totalDrawers} Laci</p>
-                            <div class="grid grid-cols-3 gap-2 text-center text-sm">
-                                <div class="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                                    <span class="text-orange-500 font-bold">${totalPunchAtas}</span>
-                                    <p class="text-xs text-gray-500">Punch At
+                    const totalPunchBawah = cab.drawers?.reduce((sum, d) => sum + (
