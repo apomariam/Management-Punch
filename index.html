@@ -619,4 +619,112 @@
                 grid.innerHTML = cabinets.map(cab => {
                     const totalDrawers = cab.drawers?.length || 0;
                     const totalPunchAtas = cab.drawers?.reduce((sum, d) => sum + (d.punch_atas || 0), 0) || 0;
-                    const totalPunchBawah = cab.drawers?.reduce((sum, d) => sum + (
+                    const totalPunchBawah = cab.drawers?.reduce((sum, d) => sum + (d.punch_bawah || 0), 0) || 0;
+                    const totalDies = cab.drawers?.reduce((sum, d) => sum + (d.dies || 0), 0) || 0;
+
+                    return `
+                        <div class="glassmorphism rounded-2xl p-6 cursor-pointer hover:shadow-lg transition-all duration-300">
+                            <h3 class="text-lg font-bold mb-2">${cab.name}</h3>
+                            <p class="text-sm text-gray-500 mb-4">${totalDrawers} Laci</p>
+                            <div class="grid grid-cols-3 gap-2 text-center text-sm">
+                                <div class="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                                    <span class="text-orange-500 font-bold">${totalPunchAtas}</span>
+                                    <p class="text-xs text-gray-500">Punch Atas</p>
+                                </div>
+                                <div class="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                                    <span class="text-blue-500 font-bold">${totalPunchBawah}</span>
+                                    <p class="text-xs text-gray-500">Punch Bawah</p>
+                                </div>
+                                <div class="p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                    <span class="text-green-500 font-bold">${totalDies}</span>
+                                    <p class="text-xs text-gray-500">Dies</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading cabinets:', error);
+                showError('Gagal memuat data lemari');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Fungsi untuk test koneksi dan muat data awal
+        async function initializeDashboard() {
+            showLoading(true);
+            try {
+                console.log('Mencoba koneksi ke Supabase...');
+                
+                // Test koneksi dengan query sederhana
+                const { data, error } = await supabase
+                    .from('drawers')
+                    .select('count', { count: 'exact', head: true });
+
+                if (error) {
+                    console.error('Error koneksi:', error);
+                    updateConnectionStatus('error', 'Gagal terhubung ke database');
+                    showError('Gagal terhubung ke database: ' + error.message);
+                    return;
+                }
+
+                console.log('Koneksi berhasil');
+                
+                // Muat data dashboard
+                await loadDashboardData();
+
+            } catch (error) {
+                console.error('Error inisialisasi:', error);
+                updateConnectionStatus('error', 'Gagal terhubung ke database');
+                showError(error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Fungsi untuk ganti halaman
+        function showPage(pageName) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.add('hidden');
+            });
+            document.getElementById(`page-${pageName}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.page === pageName) {
+                    item.classList.add('active');
+                }
+            });
+            
+            currentPage = pageName;
+            
+            // Muat data sesuai halaman
+            if (pageName === 'inventory') {
+                loadCabinets();
+            } else if (pageName === 'products') {
+                loadProducts();
+            }
+        }
+
+        // Dark mode
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Dark mode
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+            }
+            document.getElementById('theme-toggle').addEventListener('click', toggleDarkMode);
+
+            // Inisialisasi dashboard
+            initializeDashboard();
+        });
+    </script>
+</body>
+</html>
